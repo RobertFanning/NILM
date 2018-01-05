@@ -732,11 +732,20 @@ pUartFifo_t pUartFifo;
     return(0);
   }
 
-  for (Count = 0; Count < BufferSize; ++Count)
+  while(1){
+    FifoPop(pUartFifo,pBuffer);
+    if(*pBuffer==65)
+      break;
+  }
+  for (Count = 1; Count < BufferSize; ++Count)
   {
     if(!FifoPop(pUartFifo,pBuffer+Count))
     {
+      if(Count == 37)
+      {
       break;
+      }
+      Count--;
     }
   }
   return(Count);
@@ -927,4 +936,3 @@ UartModemEvents_t  ModemEvents;
   return(ModemEvents);
 }
 #endif // UART1_MODEM_STAT_ENA > 0
-
