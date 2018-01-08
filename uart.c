@@ -713,6 +713,7 @@ Int32U Mul, Div, AddDiv, Freq;
 Int32U UartRead(UartNum_t Uart, pInt8U pBuffer, Int32U BufferSize)
 {
 Int32U Count;
+int c = 0;
 pUartFifo_t pUartFifo;
   switch (Uart)
   {
@@ -731,17 +732,19 @@ pUartFifo_t pUartFifo;
   default:
     return(0);
   }
-
+c = 0;
   while(1){
     FifoPop(pUartFifo,pBuffer);
-    if(*pBuffer==65)
+    if(*pBuffer==65 || c > 1000)
       break;
+    c++;
   }
-  for (Count = 1; Count < BufferSize; ++Count)
+  c = 0;
+  for (Count = 0; Count < BufferSize; ++Count)
   {
     if(!FifoPop(pUartFifo,pBuffer+Count))
     {
-      if(Count == 37)
+      if(Count >= 63)
       {
       break;
       }
