@@ -28,20 +28,24 @@
  *
  *************************************************************************/
 double convVolt(pInt8U Buffer)
+ //  double convVolt(pInt8U Vol)
 {
   Int8U Vol[7];
   for(int i = 0; i < 6; i++){
-    Vol[i] = Buffer[i + 8];
+    Vol[i] = Buffer[i + 7];
   }
+  Vol[6] = 0x00;
   return (strtol(Vol,NULL,16) * 0.000023-2);
 }
 
 double convAmp(pInt8U Buffer)
+//double convAmp(pInt8U Amp)
 {
   Int8U Amp[7];
   for (int i = 0; i < 6; i++){
-    Amp[i] = Buffer[i + 20];
+    Amp[i] = Buffer[i + 19];
   }
+  Amp[6] = 0x00;
   if (strtol(Amp,NULL,16) <= 3512)
      return 0;
   else
@@ -49,12 +53,13 @@ double convAmp(pInt8U Buffer)
 }
 
 double convPow(pInt8U Buffer)
+//double convPow(pInt8U Pow)
 {
   Int8U Pow[7];
   for (int i = 0; i < 6; i++){
-    Pow[i] = Buffer[i + 32];
+    Pow[i] = Buffer[i + 31];
   }
-
+  Pow[6] = 0x00;
   if (strtol(Pow, NULL, 16) * 0.0014 - 1.4 < 0)
     return 0;
   else
