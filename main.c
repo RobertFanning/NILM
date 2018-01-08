@@ -73,6 +73,9 @@ int main(void)
   Int8U Buffer[100] = {0x00};
   Int32U Size;
 Boolean CdcConfigureStateHold;
+//Int8U Volt[7];
+//Int8U Ampt[7];
+//Int8U Powt[7];
 double Vol;
 double Amp;
 double Pow;
@@ -132,17 +135,25 @@ SerialState_t   SerialState;
       Size = UartRead(UART_0,Buffer,sizeof(Buffer)-1);
       if(Size)
       {
+        /*for (int i = 0; i < 6; i++){
+          Volt[i] = Buffer[i + 7];
+          Ampt[i] = Buffer[i + 19];
+          Powt[i] = Buffer[i + 31];
+        }
+        Volt[6] = 0x00;
+        Ampt[6] = 0x00;
+        Powt[6] = 0x00;*/
         Vol = convVolt(Buffer);
         Amp = convAmp(Buffer);
         Pow = convPow(Buffer);
-        
         Buffer[Size] = 0;
        
         GLCD_SetFont(&Terminal_6_8_6,0xFFFFFF,0x00000000);
         GLCD_SetWindow(10,110,300,133);
         GLCD_TextSetPos(0,0);
-        
+        //GLCD_print(Buffer);
         GLCD_print("Volts: %f Amps: %f Power: %f",Vol, Amp, Pow);
+        //GLCD_print(Buffer);
       }
 
       // Get line and modem events from UART
