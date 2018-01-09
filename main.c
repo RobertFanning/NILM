@@ -73,9 +73,9 @@ int main(void)
   Int8U Buffer[100] = {0x00};
   Int32U Size;
   Boolean CdcConfigureStateHold;
-  Device device[20];
+  Device devices[20];
   RS232 previous[3];
-  int registered=0;// number of registered devices
+  int DevicesRegistered=0,DeviceID;// number of registered devices
 #if CDC_DEVICE_SUPPORT_LINE_CODING > 0
 //CDC_LineCoding_t CDC_LineCoding;
 UartLineCoding_t UartLineCoding;
@@ -146,6 +146,20 @@ SerialState_t   SerialState;
         previous[0].Q = convPowR(Buffer);
         previous[0].PF = convPF(Buffer);
         Buffer[Size] = 0;
+        
+        //Positive Edge Detected
+        if (EdgeDetect(previous)==1){
+          DeviceID=FindMatch(previous, devices, DevicesRegistered);
+        }
+        //Negative Edge Detected
+        else if (EdgeDetect(previous)==-1){
+          DeviceID=FindMatch(previous, devices, DevicesRegistered)
+        }
+        //No Edge Detected
+        else{
+          
+        }
+       
 
         
         
