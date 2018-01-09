@@ -72,14 +72,10 @@ int main(void)
 {
   Int8U Buffer[100] = {0x00};
   Int32U Size;
-Boolean CdcConfigureStateHold;
-//Int8U Volt[7];
-//Int8U Ampt[7];
-//Int8U Powt[7];
-double Vol;
-double Amp;
-double Pow;
-
+  Boolean CdcConfigureStateHold;
+  Device device[20];
+  RS232 previous[3];
+  int registered=0;// number of registered devices
 #if CDC_DEVICE_SUPPORT_LINE_CODING > 0
 //CDC_LineCoding_t CDC_LineCoding;
 UartLineCoding_t UartLineCoding;
@@ -143,16 +139,22 @@ SerialState_t   SerialState;
         Volt[6] = 0x00;
         Ampt[6] = 0x00;
         Powt[6] = 0x00;*/
-        Vol = convVolt(Buffer);
-        Amp = convAmp(Buffer);
-        Pow = convPow(Buffer);
+        shiftPrevious(previous);
+        previous[0].V = convVolt(Buffer);
+        previous[0].A = convAmp(Buffer);
+        previous[0].P = convPow(Buffer);
+        previous[0].Q = convPowR(Buffer);
+        previous[0].PF = convPF(Buffer);
         Buffer[Size] = 0;
-       
+
+        
+        
         GLCD_SetFont(&Terminal_6_8_6,0xFFFFFF,0x00000000);
         GLCD_SetWindow(10,110,300,133);
         GLCD_TextSetPos(0,0);
-        //GLCD_print(Buffer);
-        GLCD_print("Volts: %f Amps: %f Power: %f",Vol, Amp, Pow);
+
+        //GLCD_print("Volts: %f Amps: %f Power: %f\n\r Reactive Pow: %f PF: %f",Vol, Amp, Pow, PowR, PF);
+        GLCD_print("V1: %f, V2: %f, V3: %f ",previous[0].V,previous[1].V,previous[2].V);
         //GLCD_print(Buffer);
       }
 
