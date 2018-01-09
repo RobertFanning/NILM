@@ -73,9 +73,10 @@ int main(void)
   Int8U Buffer[70] = {0x00};
   Int32U Size;
   Boolean CdcConfigureStateHold;
-  Device devices[5];
-  RS232 previous[3];
-  int DevicesRegistered=0,DeviceID, sleep;// number of registered devices
+  Device devices[5]={{0}};
+  RS232 previous[3]={{0}};
+  int DevicesRegistered=0,DeviceID,i;// number of registered devices
+  double TotalPower;
 #if CDC_DEVICE_SUPPORT_LINE_CODING > 0
 //CDC_LineCoding_t CDC_LineCoding;
 UartLineCoding_t UartLineCoding;
@@ -154,39 +155,41 @@ SerialState_t   SerialState;
         
         //Positive Edge Detected
         if (EdgeDetect(previous)==1){
-          
+          StabilityCheck(previous, Buffer, UART_0, sizeof(Buffer));
           DeviceID=FindMatch(previous, devices, DevicesRegistered);
           
           if(DeviceID != -1)
             devices[DeviceID].status=TRUE;
           else{//no match found, new device activated
-            while(!StabilityCheck){
-               Size = UartRead(UART_0,Buffer,sizeof(Buffer)-1);
-               if(Size){
-
-                  shiftPrevious(previous);
-                  previous[0].V = convVolt(Buffer);
-                  previous[0].A = convAmp(Buffer);
-                  previous[0].P = convPow(Buffer);
-                  previous[0].Q = convPowR(Buffer);
-                  previous[0].PF = convPF(Buffer);
-                  Buffer[Size] = 0;
-            }
-            }
+             for(i=0; i<DevicesRegistered; i++){
+                if (devices[i].status==TRUE)
+                TotalPower+=devices[i].P;
+             }
+            devices[DevicesRegistered].P = previous[0].P-TotalPower;
             devices[DevicesRegistered].status = TRUE;
-            devices[DevicesRegistered].P = previous[0].P;
-            DevicesRegistered+=1;
+            DevicesRegistered+=1;  
           }
-          
         }
+        
+        
         //Negative Edge Detected
         if (EdgeDetect(previous)==-1){
-          
+          //Let the negative edge stabilise
+          StabilityCheck(previous, Buffer, UART_0, sizeof(Buffer));            
+          if (previous[0].P<0.01){
+             for(i=0; i<DevicesRegistered; i++){
+                if (devices[i].status==TRUE)
+                  devices[i].status=FALSE;
+             }
+          }
+          else{
           DeviceID=FindMatch(previous, devices, DevicesRegistered);
           
+          DeviceID=DeviceID;
           if(DeviceID != -1)
             devices[DeviceID].status=FALSE;
           
+          }
         }
         
         //No Edge Detected
@@ -195,11 +198,11 @@ SerialState_t   SerialState;
         
         
         GLCD_SetFont(&Terminal_6_8_6,0xFFFFFF,0x00000000);
-        GLCD_SetWindow(10,110,300,133);
+        GLCD_SetWindow(10,70,300,200);
         GLCD_TextSetPos(0,0);
 
         //GLCD_print("Volts: %f Amps: %f Power: %f\n\r Reactive Pow: %f PF: %f",Vol, Amp, Pow, PowR, PF);
-        GLCD_print("devices: %d, DeviceP: %f, Device: %d ",DevicesRegistered, devices[0].P,devices[0].status);
+        GLCD_print("devices: %d \n\rD1P: %f, D1S: %s \n\n\rD2P: %f, D2S: %s \n\n\rD3P: %f, D3S: %s",DevicesRegistered, devices[0].P,devices[0].status ? "ON" : "OFF", devices[1].P,devices[1].status ? "ON" : "OFF", devices[2].P,devices[2].status ? "ON" : "OFF");
         //GLCD_print(Buffer);
       }
 
