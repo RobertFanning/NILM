@@ -38,6 +38,8 @@ double convPow(pInt8U Buffer);
 double convPF(pInt8U Buffer);
 double convPowR(pInt8U Buffer);
 void shiftPrevious(RS232 previous[]);
+int EdgeDetect(RS232 previous[]);
+int FindMatch(RS232 previous[],Device devices[], int DevicesRegistered);
 
 
 #endif
