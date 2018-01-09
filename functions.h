@@ -17,6 +17,7 @@
 #ifndef _FUNCTIONS_H
 #define _FUNCTIONS_H
 #include "includes.h"
+#include "uart.h"
 
 /*************************************************************************
  * Function Name: Uart0Isr
@@ -40,7 +41,7 @@ double convPowR(pInt8U Buffer);
 void shiftPrevious(RS232 previous[]);
 int EdgeDetect(RS232 previous[]);
 int FindMatch(RS232 previous[],Device devices[], int DevicesRegistered);
-Boolean StabilityCheck(RS232 previous[]);
+void StabilityCheck(RS232 previous[],pInt8U Buffer,UartNum_t Uart, int size);
 
 
 #endif
