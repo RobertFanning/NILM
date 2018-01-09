@@ -27,8 +27,17 @@
  * Description: UART 0 interrupt routine
  *
  *************************************************************************/
+struct measurements {double V; double A; double P; double Q; double PF;};
+typedef struct measurements RS232;
+struct device {char name[10]; Boolean status; double P; double Q; double PF;};
+typedef struct device Device;
+
 double convVolt(pInt8U Buffer);
 double convAmp(pInt8U Buffer);
 double convPow(pInt8U Buffer);
+double convPF(pInt8U Buffer);
+double convPowR(pInt8U Buffer);
+void shiftPrevious(RS232 previous[]);
+
 
 #endif
