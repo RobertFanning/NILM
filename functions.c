@@ -101,9 +101,9 @@ void shiftPrevious(RS232 previous[3])
 int EdgeDetect(RS232 previous[3])
 {
   
-  if ((previous[0].P-previous[1].P)>2)//Positive Edge Detected
+  if ((previous[0].P-previous[1].P)>6)//Positive Edge Detected
     return (1);
-  else if ((previous[0].P-previous[1].P)<-2)//Negative Edge Detected
+  else if ((previous[0].P-previous[1].P)<-6)//Negative Edge Detected
     return (-1);
   else 
     return (0);
@@ -116,11 +116,18 @@ int FindMatch(RS232 previous[3],Device devices[20], int DevicesRegistered)
   for(i=0; i<DevicesRegistered; i++){
     
     //check if the edge is within 2 watts of registered devices power
-    if (devices[i].P-abs(previous[0].P-previous[1].P)<2)
+    if ((devices[i].P-abs(previous[0].P-previous[1].P))<2&&devices[i].status==FALSE)
       return i;
     
   }
   
   return -1;
 
+}
+
+Boolean StabilityCheck(RS232 previous[3]){
+  if (abs(previous[0].P-previous[1].P)<0.1&&abs(previous[1].P-previous[2].P)<0.1&&abs(previous[0].P-previous[2].P)<0.1)
+    return TRUE;
+  else
+    return FALSE;
 }
