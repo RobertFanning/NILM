@@ -70,12 +70,12 @@ extern FontType_t Terminal_18_24_12;
  *************************************************************************/
 int main(void)
 {
-  Int8U Buffer[100] = {0x00};
+  Int8U Buffer[70] = {0x00};
   Int32U Size;
   Boolean CdcConfigureStateHold;
-  Device devices[20];
+  Device devices[5];
   RS232 previous[3];
-  int DevicesRegistered=0,DeviceID;// number of registered devices
+  int DevicesRegistered=0,DeviceID, sleep;// number of registered devices
 #if CDC_DEVICE_SUPPORT_LINE_CODING > 0
 //CDC_LineCoding_t CDC_LineCoding;
 UartLineCoding_t UartLineCoding;
@@ -124,7 +124,12 @@ SerialState_t   SerialState;
   GLCD_print("\fSerial Port Test");
 
   //CdcConfigureStateHold = !IsUsbCdcConfigure();
-
+        previous[0].V = 0;
+        previous[0].A = 0;
+        previous[0].P = 0;
+        previous[0].Q = 0;
+        previous[0].PF = 0;
+    
   while(1)
   {
     
@@ -149,16 +154,42 @@ SerialState_t   SerialState;
         
         //Positive Edge Detected
         if (EdgeDetect(previous)==1){
+          
           DeviceID=FindMatch(previous, devices, DevicesRegistered);
-        }
-        //Negative Edge Detected
-        else if (EdgeDetect(previous)==-1){
-          DeviceID=FindMatch(previous, devices, DevicesRegistered)
-        }
-        //No Edge Detected
-        else{
+          
+          if(DeviceID != -1)
+            devices[DeviceID].status=TRUE;
+          else{//no match found, new device activated
+            while(!StabilityCheck){
+               Size = UartRead(UART_0,Buffer,sizeof(Buffer)-1);
+               if(Size){
+
+                  shiftPrevious(previous);
+                  previous[0].V = convVolt(Buffer);
+                  previous[0].A = convAmp(Buffer);
+                  previous[0].P = convPow(Buffer);
+                  previous[0].Q = convPowR(Buffer);
+                  previous[0].PF = convPF(Buffer);
+                  Buffer[Size] = 0;
+            }
+            }
+            devices[DevicesRegistered].status = TRUE;
+            devices[DevicesRegistered].P = previous[0].P;
+            DevicesRegistered+=1;
+          }
           
         }
+        //Negative Edge Detected
+        if (EdgeDetect(previous)==-1){
+          
+          DeviceID=FindMatch(previous, devices, DevicesRegistered);
+          
+          if(DeviceID != -1)
+            devices[DeviceID].status=FALSE;
+          
+        }
+        
+        //No Edge Detected
        
 
         
@@ -168,7 +199,7 @@ SerialState_t   SerialState;
         GLCD_TextSetPos(0,0);
 
         //GLCD_print("Volts: %f Amps: %f Power: %f\n\r Reactive Pow: %f PF: %f",Vol, Amp, Pow, PowR, PF);
-        GLCD_print("V1: %f, V2: %f, V3: %f ",previous[0].V,previous[1].V,previous[2].V);
+        GLCD_print("devices: %d, DeviceP: %f, Device: %d ",DevicesRegistered, devices[0].P,devices[0].status);
         //GLCD_print(Buffer);
       }
 
