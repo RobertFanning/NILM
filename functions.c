@@ -110,13 +110,19 @@ int EdgeDetect(RS232 previous[3])
 }
 
 //function to determine device causing edge
-int FindMatch(RS232 previous[3],Device devices[20], int DevicesRegistered)
+int FindMatch(RS232 previous[3],Device devices[5], int DevicesRegistered)
 {
   int i;
+  double TotalPower=0;
+  for(i=0; i<DevicesRegistered; i++){
+    if (devices[i].status==TRUE)
+      TotalPower+=devices[i].P;
+  }
+    
   for(i=0; i<DevicesRegistered; i++){
     
     //check if the edge is within 2 watts of registered devices power
-    if ((devices[i].P-abs(previous[0].P-previous[1].P))<2&&devices[i].status==FALSE)
+    if (abs(abs(TotalPower-previous[0].P)-devices[i].P)<3)
       return i;
     
   }
@@ -125,9 +131,27 @@ int FindMatch(RS232 previous[3],Device devices[20], int DevicesRegistered)
 
 }
 
-Boolean StabilityCheck(RS232 previous[3]){
-  if (abs(previous[0].P-previous[1].P)<0.1&&abs(previous[1].P-previous[2].P)<0.1&&abs(previous[0].P-previous[2].P)<0.1)
-    return TRUE;
-  else
-    return FALSE;
+void StabilityCheck(RS232 previous[3],pInt8U Buffer,UartNum_t Uart, int size){
+  
+  int Size,count=0;
+  while(!(abs(previous[0].P-previous[1].P)<0.1&&abs(previous[1].P-previous[2].P)<0.1&&abs(previous[0].P-previous[2].P)<0.1))
+  {
+  Size=0;
+  Size = UartRead(Uart,Buffer,size-1);
+     if(Size){
+        shiftPrevious(previous);
+        previous[0].V = convVolt(Buffer);
+        previous[0].A = convAmp(Buffer);
+        previous[0].P = convPow(Buffer);
+        previous[0].Q = convPowR(Buffer);
+        previous[0].PF = convPF(Buffer);
+        Buffer[Size] = 0;
+     }
+    count++;
+  }
+   Size=0;   
+   //if(abs(previous[0].P-previous[1].P)<0.1&&abs(previous[1].P-previous[2].P)<0.1&&abs(previous[0].P-previous[2].P)<0.1)
+   //return true;
+  //else
+    //return false;
 }
