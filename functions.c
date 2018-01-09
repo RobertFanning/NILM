@@ -17,6 +17,8 @@
  
 #include "functions.h"
 
+
+
 /*************************************************************************
  * Function Name: FifoPush
  * Parameters: pUartFifo_t Fifo, Int8U Data
@@ -28,24 +30,20 @@
  *
  *************************************************************************/
 double convVolt(pInt8U Buffer)
- //  double convVolt(pInt8U Vol)
 {
   Int8U Vol[7];
   for(int i = 0; i < 6; i++){
     Vol[i] = Buffer[i + 7];
   }
-  Vol[6] = 0x00;
   return (strtol(Vol,NULL,16) * 0.000023-2);
 }
 
 double convAmp(pInt8U Buffer)
-//double convAmp(pInt8U Amp)
 {
   Int8U Amp[7];
   for (int i = 0; i < 6; i++){
     Amp[i] = Buffer[i + 19];
   }
-  Amp[6] = 0x00;
   if (strtol(Amp,NULL,16) <= 3512)
      return 0;
   else
@@ -53,16 +51,49 @@ double convAmp(pInt8U Buffer)
 }
 
 double convPow(pInt8U Buffer)
-//double convPow(pInt8U Pow)
 {
   Int8U Pow[7];
   for (int i = 0; i < 6; i++){
     Pow[i] = Buffer[i + 31];
   }
-  Pow[6] = 0x00;
+
   if (strtol(Pow, NULL, 16) * 0.0014 - 1.4 < 0)
     return 0;
   else
     return strtol(Pow, NULL, 16) * 0.0014 - 1.4;
 }
 
+double convPF(pInt8U Buffer)
+{
+  Int8U PF[7];
+  for(int i = 0; i < 6; i++){
+    PF[i] = Buffer[i + 43];
+  }
+  return (strtol(PF,NULL,16) * 0.000000048-0.12);
+}
+
+double convPowR(pInt8U Buffer)
+{
+  Int8U PowR[7];
+  for(int i = 0; i < 6; i++){
+    PowR[i] = Buffer[i + 55];
+  }
+  
+  if (strtol(PowR,NULL,16) * 0.0000018-0.00016 < 0)
+    return 0;
+  else
+    return (strtol(PowR,NULL,16) * 0.0000018-0.00016);
+}
+
+void shiftPrevious(RS232 previous[3])
+{
+  int i=1;
+  for (i=1; i>=0 ; i--){
+   previous[i+1].V = previous[i].V;
+   previous[i+1].A = previous[i].A;
+   previous[i+1].P = previous[i].P;
+   previous[i+1].Q = previous[i].Q;
+   previous[i+1].PF = previous[i].PF;
+  }
+    return;
+}
