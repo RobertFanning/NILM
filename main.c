@@ -8,15 +8,15 @@
  *    Description : Main module
  *
  *    History :
- *    1. Date        : August 5, 2008
+ *    1. Date        : 12, August 2008
  *       Author      : Stanimir Bonev
  *       Description : Create
  *
  *  This example project shows how to use the IAR Embedded Workbench for ARM
- * to develop code for the IAR LPC2478-SK board.
- *  It implements USB CDC (Communication Device Class) device and install
- * it like a Virtual COM port. The UART0 is used for physical implementation
- * of the RS232 port.
+ * to develop code for the IAR LPC2478-SK board. It shows basic use of I/O,
+ * timers, interrupts, LCD controllers and LCD touch screen.
+ *
+ *  A cursor is shown and moves when the screen is touched.
  *
  * Jumpers:
  *  EXT/JLINK  - depending of power source
@@ -35,8 +35,7 @@
  *
  *    $Revision: 28 $
  **************************************************************************/
-#include "includes.h"
-//#include "logo.h"
+#include <includes.h>
 
 #define NONPROT 0xFFFFFFFF
 #define CRP1  	0x12345678
@@ -51,13 +50,20 @@ __root const unsigned crp = NONPROT;
 #endif
 
 #define LCD_VRAM_BASE_ADDR ((Int32U)&SDRAM_BASE_ADDR)
+// ########## colors #################
+#define WHITE 0xffffff
+#define BLACK 0x000000
+#define RED 0x0000ff
+#define GREEN 0x00ff00
+#define BLUE 0xff0000
+// ###################################
 
 extern Int32U SDRAM_BASE_ADDR;
 extern FontType_t Terminal_6_8_6;
 extern FontType_t Terminal_9_12_6;
 extern FontType_t Terminal_18_24_12;
 
-
+extern struct device_t{int devicenumber;float WA;float VAR;float VA;} ;
 
 /*************************************************************************
  * Function Name: main
@@ -70,23 +76,39 @@ extern FontType_t Terminal_18_24_12;
  *************************************************************************/
 int main(void)
 {
-  Int8U Buffer[70] = {0x00};
-  Int32U Size;
-  Boolean CdcConfigureStateHold;
-  Device devices[5]={{0}};
-  RS232 previous[3]={{0}};
-  int DevicesRegistered=0,DeviceID,i;// number of registered devices
-  double TotalPower;
-#if CDC_DEVICE_SUPPORT_LINE_CODING > 0
-//CDC_LineCoding_t CDC_LineCoding;
-UartLineCoding_t UartLineCoding;
-#endif // CDC_DEVICE_SUPPORT_LINE_CODING > 0
+Int32U cursor_x = (C_GLCD_H_SIZE - CURSOR_H_SIZE)/2, cursor_y = (C_GLCD_V_SIZE - CURSOR_V_SIZE)/2;
+ToushRes_t XY_Touch;
+Boolean Touch = FALSE;
+int V=235;
+int A = 2;
+int P = 400;
+int Q = 80;
+int PF = 45;
+int H = 1;
+// ###################LK variables ###########
+Boolean LKupdateDisplay = FALSE;
+int LKbutton = 0;
+int LKselectedDevice =0;
+struct device_t device[4];
+device[0].devicenumber = 1;
+device[0].VA = 80;
+device[0].WA = 70;
+device[0].VAR=15;
+device[1].devicenumber = 2;
+device[1].VA = 40;
+device[1].WA = 20;
+device[1].VAR=30;
+device[2].devicenumber = 3;
+device[2].VA = 120;
+device[2].WA = 70;
+device[2].VAR=90;
+device[3].devicenumber = 4;
+device[3].VA = 150;
+device[3].WA = 70;
+device[3].VAR=80;
 
-#if CDC_DEVICE_SUPPORT_LINE_STATE > 0
-UartLineEvents_t      UartLineEvents;
+// ###########################################
 
-SerialState_t   SerialState;
-#endif // CDC_DEVICE_SUPPORT_LINE_STATE > 0
 
   GLCD_Ctrl (FALSE);
   // Init GPIO
@@ -104,145 +126,84 @@ SerialState_t   SerialState;
   // Init VIC
   VIC_Init();
   // GLCD init
-  GLCD_Init (0, NULL);
-  // Disable Hardware cursor
+  GLCD_Init (IarLogoPic.pPicStream, NULL);
   GLCD_Cursor_Dis(0);
-  // Init UART 0
-  UartInit(UART_0,4,NORM);
-  // Init USB
-  UsbCdcInit();
+  GLCD_Copy_Cursor ((Int32U *)Cursor, 0, sizeof(Cursor)/sizeof(Int32U));
+  GLCD_Cursor_Cfg(CRSR_FRAME_SYNC | CRSR_PIX_32);
+  GLCD_Move_Cursor(cursor_x, cursor_y);
+  GLCD_Cursor_En(0);
+  // Init touch screen
+  TouchScrInit();
+
+  // Touched indication LED
+  USB_H_LINK_LED_SEL = 0; // GPIO
+  USB_H_LINK_LED_FSET = USB_H_LINK_LED_MASK;
+  USB_H_LINK_LED_FDIR |= USB_H_LINK_LED_MASK;
 
   __enable_interrupt();
-
-  // Soft connection enable
-  USB_ConnectRes(TRUE);
-  // Enable GLCD
   GLCD_Ctrl (TRUE);
-
-  GLCD_SetFont(&Terminal_18_24_12,0x00FFFF,0x00000000);
-  GLCD_SetWindow(80,10,270,33);
-  GLCD_TextSetPos(0,0);
-  GLCD_print("\fSerial Port Test");
-
-  //CdcConfigureStateHold = !IsUsbCdcConfigure();
-        previous[0].V = 0;
-        previous[0].A = 0;
-        previous[0].P = 0;
-        previous[0].Q = 0;
-        previous[0].PF = 0;
-    
+  
+// Draw Opening Menu
+  drawMenuStart();
+ 
   while(1)
   {
-    
-      Size = UartRead(UART_0,Buffer,sizeof(Buffer)-1);
-      if(Size)
-      {
-        /*for (int i = 0; i < 6; i++){
-          Volt[i] = Buffer[i + 7];
-          Ampt[i] = Buffer[i + 19];
-          Powt[i] = Buffer[i + 31];
-        }
-        Volt[6] = 0x00;
-        Ampt[6] = 0x00;
-        Powt[6] = 0x00;*/
-        shiftPrevious(previous);
-        previous[0].V = convVolt(Buffer);
-        previous[0].A = convAmp(Buffer);
-        previous[0].P = convPow(Buffer);
-        previous[0].Q = convPowR(Buffer);
-        previous[0].PF = convPF(Buffer);
-        Buffer[Size] = 0;
-        
-        //Positive Edge Detected
-        if (EdgeDetect(previous)==1){
-          StabilityCheck(previous, Buffer, UART_0, sizeof(Buffer));
-          DeviceID=FindMatch(previous, devices, DevicesRegistered);
-          
-          if(DeviceID != -1)
-            devices[DeviceID].status=TRUE;
-          else{//no match found, new device activated
-             for(i=0; i<DevicesRegistered; i++){
-                if (devices[i].status==TRUE)
-                TotalPower+=devices[i].P;
-             }
-            devices[DevicesRegistered].P = previous[0].P-TotalPower;
-            devices[DevicesRegistered].status = TRUE;
-            DevicesRegistered+=1;  
+    if(TouchScrGetStatus(&XY_Touch)) // did any change occur?
+    {
+      cursor_x = XY_Touch.X;
+      cursor_y = XY_Touch.Y;
+      GLCD_Move_Cursor(cursor_x, cursor_y); // update cursor position
+        if (FALSE == Touch) // not being touched : turn off touch and LED
+          {
+            Touch = TRUE;
+            USB_H_LINK_LED_FCLR = USB_H_LINK_LED_MASK;
+            USB_D_LINK_LED_FCLR = USB_D_LINK_LED_MASK;
           }
-        }
-        
-        
-        //Negative Edge Detected
-        if (EdgeDetect(previous)==-1){
-          //Let the negative edge stabilise
-          StabilityCheck(previous, Buffer, UART_0, sizeof(Buffer));            
-          if (previous[0].P<0.01){
-             for(i=0; i<DevicesRegistered; i++){
-                if (devices[i].status==TRUE)
-                  devices[i].status=FALSE;
-             }
-          }
-          else{
-          DeviceID=FindMatch(previous, devices, DevicesRegistered);
-          
-          DeviceID=DeviceID;
-          if(DeviceID != -1)
-            devices[DeviceID].status=FALSE;
-          
-          }
-        }
-        
-        //No Edge Detected
-       
-
-        
-        
-        GLCD_SetFont(&Terminal_6_8_6,0xFFFFFF,0x00000000);
-        GLCD_SetWindow(10,70,300,200);
-        GLCD_TextSetPos(0,0);
-
-        //GLCD_print("Volts: %f Amps: %f Power: %f\n\r Reactive Pow: %f PF: %f",Vol, Amp, Pow, PowR, PF);
-        GLCD_print("devices: %d \n\rD1P: %f, D1S: %s \n\n\rD2P: %f, D2S: %s \n\n\rD3P: %f, D3S: %s",DevicesRegistered, devices[0].P,devices[0].status ? "ON" : "OFF", devices[1].P,devices[1].status ? "ON" : "OFF", devices[2].P,devices[2].status ? "ON" : "OFF");
-        //GLCD_print(Buffer);
-      }
-
-      // Get line and modem events from UART
-#if CDC_DEVICE_SUPPORT_LINE_STATE > 0
-      // Get line events - BI, FE, PE, OE
-      UartLineEvents = UartGetUartLineEvents(UART_0);
-      if(UartLineEvents.Data)
-      {
-        SerialState.Data = 0;
-        // Line events report BI, PE, FE and OE
-        SerialState.bBreak = UartLineEvents.bBI;
-        SerialState.bFraming = UartLineEvents.bFE;
-        SerialState.bOverRun = UartLineEvents.bOE;
-        SerialState.bParity = UartLineEvents.bPE;
-        // Send events
-        UsbCdcReportSerialCommState(SerialState);
-      }
-#endif // CDC_DEVICE_SUPPORT_LINE_STATE > 0
-
-      if(CdcConfigureStateHold == TRUE)
-      {
-        CdcConfigureStateHold = FALSE;
-      }
-
-    // UART line coding - Baud rate, number of the stop bits,
-    // number of bits of the data word and parity type
-      // Update the baud rate
-      UartLineCoding.dwDTERate = 115200;
-      // Update the stop bits number
-      UartLineCoding.bStopBitsFormat = UART_ONE_STOP_BIT;
-      // Update the parity type
-      UartLineCoding.bParityType = UART_NO_PARITY;
-      // Update the word width
-      UartLineCoding.bDataBits = UART_WORD_WIDTH_8;
-      // Set UART line coding
-      UartSetLineCoding(UART_0,UartLineCoding);
-#if CDC_DEVICE_SUPPORT_BREAK > 0
-    // Break event
-    UartSetUartLineState(UART_0,UsbCdcGetBreakState());
-#endif // CDC_DEVICE_SUPPORT_BREAK > 0
+    }
+  
+    else if(Touch &&cursor_x < 77 && cursor_y >=190) // button 1
+    {
+      LKbutton=1;LKupdateDisplay = TRUE;
+      Touch = FALSE;
+    }
+    else if(Touch && LKbutton==0) // touch when learn1
+    {
+      LKbutton = 5;
+      LKupdateDisplay = TRUE;
+      Touch = FALSE;
+    }
+      else if(Touch && LKbutton==5) // touch when learn1
+    {
+      LKbutton = 6;
+      LKupdateDisplay = TRUE;
+      Touch = FALSE;
+    }
+       else if(Touch && LKbutton==6) // touch when learn1
+    {
+      LKbutton = 7;
+      LKupdateDisplay = TRUE;
+      Touch = FALSE;
+    }
+       else if(Touch && LKbutton==7) // touch when learn1
+    {
+      LKbutton = 0;
+      LKupdateDisplay = TRUE;
+      Touch = FALSE;
+    }
+    if(LKupdateDisplay == TRUE){
+            LKupdateDisplay = FALSE; // this prevents unnecessary updates == no flicker on screen
+            switch (LKbutton){ // Prints message for selected button
+              case 0 : drawMenuStatus(); break;
+              case 1 : drawMenuAdd();LKbutton=0;break;
+              case 2 : drawMenuEdgeDetected();LKbutton=0;break;
+              case 3 : drawMenuEdgeDetectedDeviceFound();LKbutton=0;break;
+              case 4 : drawMenuDeviceAdded(); drawButtonUpdate();break;
+              case 5 : drawLearn1(); break;
+              case 6 : drawLearn2(); break;
+              case 7 : drawLearn3(); break;
+              default :   break;
+              }
+            drawTopUpdate(V,A,P,Q,PF,H);
+    }
   }
 }
